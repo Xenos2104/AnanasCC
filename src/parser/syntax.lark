@@ -1,0 +1,189 @@
+// ===============  程 序  ===============
+
+?start          : program
+program         : unit*
+
+// ===============  声 明  ===============
+
+unit            : definition | declaration
+definition      : func_def | comp_def | enum_def
+declaration     : func_decl | var_decl | arr_decl
+
+// 说明符
+specifier       : VOID | CHAR | INT | FLOAT | BOOL | TYPE
+
+// 声明符
+declarator      : STAR? (IDENT | TYPE | IMM)
+
+// 初始化
+initializer     : assign_expr | LBRACE initializer (COMMA initializer)* (COMMA)? RBRACE
+
+// 后缀
+array_suffix    : LBRACK const_expr? RBRACK
+param_suffix    : LPAREN (param_list | VOID)? RPAREN
+param_list      : param_item (COMMA param_item)*
+param_item      : specifier declarator
+
+// 函数定义
+func_def        : specifier declarator param_suffix comp_stmt
+
+// 结构体定义
+comp_def        : (STRUCT | UNION) declarator LBRACE comp_list RBRACE SEMICOLON
+comp_list       : comp_item+
+comp_item       : specifier member_list SEMICOLON
+member_list     : member_item (COMMA member_item)*
+member_item     : declarator array_suffix*
+
+// 枚举定义
+enum_def        : ENUM declarator LBRACE enum_list RBRACE SEMICOLON
+enum_list       : enum_item (COMMA enum_item)*
+enum_item       : IMM (ASSIGN const_expr)?
+
+// 函数声明
+func_decl       : specifier func_list SEMICOLON
+func_list       : func_item (COMMA func_item)*
+func_item       : declarator param_suffix
+
+// 变量声明
+var_decl        : specifier var_list SEMICOLON
+var_list        : var_item (COMMA var_item)*
+var_item        : declarator (ASSIGN initializer)?
+
+// 数组声明
+arr_decl        : specifier arr_list SEMICOLON
+arr_list        : arr_item (COMMA arr_item)*
+arr_item        : declarator array_suffix+ (ASSIGN initializer)?
+
+// ===============  语 句  ===============
+
+statement       : comp_stmt | expr_stmt | select_stmt | iter_stmt | jump_stmt
+
+// 复合语句
+comp_stmt       : LBRACE (definition | declaration | statement)* RBRACE
+
+// 表达式语句
+expr_stmt       : expression? SEMICOLON
+
+// 选择语句
+select_stmt     : IF LPAREN expression RPAREN statement (ELSE statement)?
+
+// 循环语句
+iter_stmt       : WHILE LPAREN expression RPAREN statement
+                | FOR LPAREN (expr_stmt | declaration) expression? SEMICOLON expression? RPAREN statement
+
+// 跳转语句
+jump_stmt       : CONTINUE SEMICOLON
+                | BREAK SEMICOLON
+                | RETURN expression? SEMICOLON
+
+// ===============  表达式  ===============
+
+expression      : assign_expr (COMMA assign_expr)*
+
+// 赋值表达式
+assign_expr     : lor_expr | unary_expr assign assign_expr
+assign          : ASSIGN | PLUSASSIGN | MINUSASSIGN
+                | STARASSIGN | SLASHASSIGN | MODASSIGN
+
+// 关系表达式
+lor_expr        : land_expr (LOR land_expr)*
+land_expr       : equal_expr (LAND equal_expr)*
+equal_expr      : rel_expr ((EQ | NE) rel_expr)*
+rel_expr        : add_expr ((LT | GT | LE | GE) add_expr)*
+
+// 算术表达式
+add_expr        : mul_expr ((PLUS | MINUS) mul_expr)*
+mul_expr        : unary_expr ((STAR | SLASH | MOD) unary_expr)*
+
+// 一元表达式
+unary_expr      : postfix_expr | (INCREMENT | DECREMENT) unary_expr
+                | (BAND | STAR | PLUS | MINUS | LNOT) mul_expr
+
+// 后缀表达式
+postfix_expr    : primary_expr
+                | postfix_expr LBRACK expression RBRACK
+                | postfix_expr LPAREN argument? RPAREN
+                | postfix_expr (DOT | ARROW) IDENT
+                | postfix_expr (INCREMENT | DECREMENT)
+argument        : assign_expr (COMMA assign_expr)*
+
+// 常量表达式
+const_expr      : lor_expr
+
+// 基本表达式
+primary_expr    : IMM | IDENT | const
+                | LPAREN expression RPAREN
+const           : INTEGER | DECIMAL | CHARACTER | STRING | TRUE | FALSE | NULLPTR
+
+// ===============  常 量  ===============
+
+INTEGER         : /((0|[1-9][0-9]*)|0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+)/
+DECIMAL         : /(?:(?:\d+\.\d*|\.\d+|\d+\.)(?:[eE][+-]?\d+)?|\d+(?:[eE][+-]?\d+))/
+CHARACTER       : /'(?:[^\\'\n]|\\.)'/
+STRING          : /"([^"\\]|\\.)*"/
+
+// ===============  关键字  ===============
+
+VOID        : "void"    // 基本类型
+INT         : "int"
+FLOAT       : "float"
+CHAR        : "char"
+BOOL        : "bool"
+STRUCT      : "struct"  // 构造类型
+UNION       : "union"
+ENUM        : "enum"
+IF          : "if"      // 条件语句
+ELSE        : "else"
+FOR         : "for"     // 循环语句
+WHILE       : "while"
+BREAK       : "break"   // 跳转语句
+CONTINUE    : "continue"
+RETURN      : "return"
+NULLPTR     : "nullptr"
+TRUE        : "true"
+FALSE       : "false"
+
+// ===============  标识符  ===============
+
+TYPE        : /(?=[A-Z0-9]*[a-z])[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*/
+IDENT       : /[a-z][a-z0-9]*(?:_[a-z0-9]+)*/
+IMM         : /[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*/
+
+// ===============  运算符  ===============
+
+PLUS        : "+"       // 算术运算
+MINUS       : "-"
+STAR        : "*"
+SLASH       : "/"
+MOD         : "%"
+LAND        : "&&"      // 逻辑运算
+LOR         : "||"
+LNOT        : "!"
+BAND        : "&"       // 位运算
+GE          : ">="      // 关系运算
+LE          : "<="
+NE          : "!="
+EQ          : "=="
+GT          : ">"
+LT          : "<"
+ASSIGN      : "="       // 赋值运算
+PLUSASSIGN  : "+="
+MINUSASSIGN : "-="
+STARASSIGN  : "*="
+SLASHASSIGN : "/="
+MODASSIGN   : "%="
+ARROW       : "->"      // 成员运算
+DOT         : "."
+INCREMENT   : "++"      // 自增运算
+DECREMENT   : "--"      // 自减运算
+
+// ===============  分隔符  ===============
+
+LBRACK      : "["       // 括号
+RBRACK      : "]"
+LPAREN      : "("
+RPAREN      : ")"
+LBRACE      : "{"
+RBRACE      : "}"
+SEMICOLON   : ";"       // 分号
+COMMA       : ","       // 逗号

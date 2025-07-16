@@ -1,0 +1,97 @@
+// ===============  单 词  ===============
+
+?start      : token*
+?token      : constant | keyword | identifier | operator | separator
+
+constant    : INTEGER | DECIMAL | CHARACTER | STRING
+keyword     : VOID | INT | FLOAT | CHAR | BOOL | STRUCT | UNION | ENUM
+            | FOR | WHILE | BREAK | CONTINUE | RETURN | IF | ELSE
+            | NULLPTR | TRUE | FALSE
+identifier  : TYPE | IDENT | IMM
+operator    : PLUS | MINUS | STAR | SLASH | MOD
+            | GE | LE | NE | EQ | GT | LT | INCREMENT | DECREMENT
+            | LAND | LOR | LNOT | BAND
+            | ASSIGN | PLUSASSIGN | MINUSASSIGN | STARASSIGN | SLASHASSIGN | MODASSIGN
+            | ARROW | DOT
+separator   : LBRACK | RBRACK | LPAREN | RPAREN | LBRACE | RBRACE | COMMA | SEMICOLON
+
+// =============== 空白/注释 ===============
+
+WS          : /[ \t\f\r\n]/+
+COMMENT     : /\/\/[^\n]*/ | /\/\*(.|\n)*?\*\//
+
+%ignore WS
+%ignore COMMENT
+
+// ===============  常 量  ===============
+
+INTEGER     : /((0|[1-9][0-9]*)|0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+)/
+DECIMAL     : /(?:(?:\d+\.\d*|\.\d+|\d+\.)(?:[eE][+-]?\d+)?|\d+(?:[eE][+-]?\d+))/
+CHARACTER   : /'(?:[^\\'\n]|\\.)'/
+STRING      : /"([^"\\]|\\.)*"/
+
+// ===============  关键字  ===============
+
+VOID        : "void"    // 基本类型
+INT         : "int"
+FLOAT       : "float"
+CHAR        : "char"
+BOOL        : "bool"
+STRUCT      : "struct"  // 构造类型
+UNION       : "union"
+ENUM        : "enum"
+IF          : "if"      // 条件语句
+ELSE        : "else"
+FOR         : "for"     // 循环语句
+WHILE       : "while"
+BREAK       : "break"   // 跳转语句
+CONTINUE    : "continue"
+RETURN      : "return"
+NULLPTR     : "nullptr"
+TRUE        : "true"
+FALSE       : "false"
+
+// ===============  标识符  ===============
+
+TYPE        : /(?=[A-Z0-9]*[a-z])[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*/
+IDENT       : /[a-z][a-z0-9]*(?:_[a-z0-9]+)*/
+IMM         : /[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*/
+
+// ===============  运算符  ===============
+
+PLUS        : "+"       // 算术运算
+MINUS       : "-"
+STAR        : "*"
+SLASH       : "/"
+MOD         : "%"
+LAND        : "&&"      // 逻辑运算
+LOR         : "||"
+LNOT        : "!"
+BAND        : "&"       // 位运算
+GE          : ">="      // 关系运算
+LE          : "<="
+NE          : "!="
+EQ          : "=="
+GT          : ">"
+LT          : "<"
+ASSIGN      : "="       // 赋值运算
+PLUSASSIGN  : "+="
+MINUSASSIGN : "-="
+STARASSIGN  : "*="
+SLASHASSIGN : "/="
+MODASSIGN   : "%="
+ARROW       : "->"      // 成员运算
+DOT         : "."
+INCREMENT   : "++"      // 自增运算
+DECREMENT   : "--"      // 自减运算
+
+// ===============  分隔符  ===============
+
+LBRACK      : "["       // 括号
+RBRACK      : "]"
+LPAREN      : "("
+RPAREN      : ")"
+LBRACE      : "{"
+RBRACE      : "}"
+SEMICOLON   : ";"       // 分号
+COMMA       : ","       // 逗号

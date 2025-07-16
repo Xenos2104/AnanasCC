@@ -1,2 +1,2 @@
 # AnanasCC
-🍍 AnanasCC - A C-to-80x86 compiler implemented in Python using PLY for Compiler Principles course project
+🍍 AnanasCC - A C-to-MIPS compiler implemented in Python using Lark for Compiler Principles course project
