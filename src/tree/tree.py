@@ -99,9 +99,9 @@ class Member(ASTNode):
 
 
 class EnumDefinition(ASTNode):
-    def __init__(self, name, enumerators, meta=None):
-        super().__init__('enum_def', [name] + enumerators, meta)
-        self.name = name
+    def __init__(self, decl, enumerators, meta=None):
+        super().__init__('enum_def', [decl] + enumerators, meta)
+        self.decl = decl
         self.enumerators = enumerators
 
 
@@ -189,6 +189,11 @@ class BreakStatement(ASTNode):
 class ContinueStatement(ASTNode):
     def __init__(self, meta=None):
         super().__init__('continue_stmt', [], meta)
+
+
+class EmptyStatement(ASTNode):
+    def __init__(self, meta=None):
+        super().__init__('empty_stmt', [], meta)
 
 
 # ===============  表达式  ===============

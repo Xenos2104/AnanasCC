@@ -14,6 +14,7 @@ class Parser:
         for token in tokens:
             ip.feed_token(token)
         tree = ip.feed_eof(tokens[-1])
+        print(tree.pretty())
 
         transformer = ASTTransformer()
         tree = transformer.transform(tree)
@@ -22,6 +23,8 @@ class Parser:
 
 if __name__ == "__main__":
     from src.lexer.lexer import Lexer
+    from src.error import CompileError
+    from src.semantic.analyzer import Analyzer
 
     with open('test.c', encoding='utf-8') as f:
         code = f.read()
@@ -31,5 +34,14 @@ if __name__ == "__main__":
 
     parser = Parser('syntax.lark')
     tree = parser.parse(tokens)
-
     print(tree.pretty())
+
+    try:
+        from src.semantic.analyzer import Analyzer
+
+        analyzer = Analyzer()
+        analyzer.analyze(tree)
+        print('语义分析没发现错误（至少目前没有）')
+        print(analyzer.table)
+    except CompileError as e:
+        print(e)

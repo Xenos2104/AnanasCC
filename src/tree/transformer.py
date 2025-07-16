@@ -84,6 +84,7 @@ class ASTTransformer(Transformer):
     @staticmethod
     def comp_def(meta, spec, decl, _, members, __, ___):
         spec = Specifier(spec, meta)
+        decl = Declarator(decl, meta=meta)
         return CompoundDefinition(spec, decl, members, meta)
 
     @staticmethod
@@ -105,8 +106,9 @@ class ASTTransformer(Transformer):
         return decl
 
     @staticmethod
-    def enum_def(meta, _, name, __, enumerators, ___, ____):
-        return EnumDefinition(name, enumerators, meta)
+    def enum_def(meta, _, decl, __, enumerators, ___, ____):
+        decl = Declarator(decl, meta=meta)
+        return EnumDefinition(decl, enumerators, meta)
 
     @staticmethod
     def enum_list(_, *args):
@@ -179,7 +181,7 @@ class ASTTransformer(Transformer):
         if len(args) == 2:
             expr = args[0]
             return ExpressionStatement(expr, meta)
-        return None
+        return EmptyStatement(meta)
 
     @staticmethod
     def select_stmt(meta, _, __, cond, ___, then, ____=None, orelse=None):

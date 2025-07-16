@@ -13,7 +13,7 @@ declaration     : func_decl | var_decl | arr_decl
 specifier       : VOID | CHAR | INT | FLOAT | BOOL | TYPE
 
 // 声明符
-declarator      : STAR? (IDENT | TYPE | IMM)
+declarator      : STAR? IDENT
 
 // 初始化
 initializer     : assign_expr | LBRACE initializer (COMMA initializer)* (COMMA)? RBRACE
@@ -28,14 +28,14 @@ param_item      : specifier declarator
 func_def        : specifier declarator param_suffix comp_stmt
 
 // 结构体定义
-comp_def        : (STRUCT | UNION) declarator LBRACE comp_list RBRACE SEMICOLON
+comp_def        : (STRUCT | UNION) TYPE LBRACE comp_list RBRACE SEMICOLON
 comp_list       : comp_item+
 comp_item       : specifier member_list SEMICOLON
 member_list     : member_item (COMMA member_item)*
 member_item     : declarator array_suffix*
 
 // 枚举定义
-enum_def        : ENUM declarator LBRACE enum_list RBRACE SEMICOLON
+enum_def        : ENUM TYPE LBRACE enum_list RBRACE SEMICOLON
 enum_list       : enum_item (COMMA enum_item)*
 enum_item       : IMM (ASSIGN const_expr)?
 
