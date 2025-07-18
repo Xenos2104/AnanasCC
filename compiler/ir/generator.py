@@ -1,9 +1,9 @@
 from lark.visitors import Interpreter
 from llvmlite import ir, binding
 
-from src.semantic.symbol import *
-from src.semantic.type import *
-from src.tree import *
+from compiler.semantic.symbol import *
+from compiler.semantic.type import *
+from compiler.tree import *
 
 binding.initialize()
 binding.initialize_native_target()

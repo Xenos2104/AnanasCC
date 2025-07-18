@@ -1,10 +1,10 @@
 from lark import Lark
 
-from src.tree import ASTTransformer
+from compiler.tree import ASTTransformer
 
 
 class Parser:
-    def __init__(self, file_path='src/parser/syntax.lark'):
+    def __init__(self, file_path='compiler/parser/syntax.lark'):
         with open(file_path, encoding='utf-8') as f:
             self.syntax = f.read()
         self.parser = Lark(self.syntax, parser='lalr', propagate_positions=True)
@@ -21,10 +21,10 @@ class Parser:
 
 
 if __name__ == "__main__":
-    from src.lexer.lexer import Lexer
-    from src.error import CompileError
-    from src.semantic.analyzer import Analyzer
-    from src.ir.generator import IRGenerator
+    from compiler.lexer.lexer import Lexer
+    from compiler.error import CompileError
+    from compiler.semantic.analyzer import Analyzer
+    from compiler.ir.generator import IRGenerator
 
     with open('test.c', encoding='utf-8') as f:
         code = f.read()

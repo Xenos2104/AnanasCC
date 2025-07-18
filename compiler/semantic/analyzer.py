@@ -1,7 +1,7 @@
 from lark.visitors import Interpreter
 
-from src.error import SemanticError
-from src.tree import *
+from compiler.error import SemanticError
+from compiler.tree import *
 from .symbol import Symbol, SymbolKind, SymbolTable
 from .type import *
 
