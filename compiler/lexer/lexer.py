@@ -10,13 +10,3 @@ class Lexer:
     def lex(self, code):
         tokens = list(self.lexer.lex(code))
         return tokens
-
-
-if __name__ == "__main__":
-    with open('test.c', encoding='utf-8') as f:
-        code = f.read()
-
-    lexer = Lexer('lexicon.lark')
-    tokens = lexer.lex(code)
-
-
