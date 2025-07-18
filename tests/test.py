@@ -5,10 +5,7 @@ from compiler.parser import Parser
 from compiler.semantic import Analyzer
 
 if __name__ == '__main__':
-    show_code = 0
-    show_tokens = 0
-    show_tree = 1
-    show_ir = 0
+    show_code, show_tokens, show_tree, show_ir = 1, 1, 1, 1
 
     with open('test.c', encoding='utf-8') as f:
         code = f.read()
@@ -30,14 +27,14 @@ if __name__ == '__main__':
         print(e)
 
     if show_code:
-        print('===============  C代码  ===============')
+        print(' C  CODE '.center(40, '='))
         print(code)
     if show_tokens:
-        print('===============  单 词  ===============')
+        print('  TOKEN  '.center(40, '='))
         list(map(lambda token: print(f'({token.type}, {token.value})'), tokens))
     if show_tree:
-        print('===============  语法树  ===============')
+        print('   AST   '.center(40, '='))
         print(tree.pretty())
     if show_ir:
-        print('=============== 中间代码 ===============')
+        print(' LLVM IR '.center(40, '='))
         print(ir)
