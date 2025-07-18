@@ -81,15 +81,15 @@ class IRGenerator(Interpreter):
         if isinstance(node, Identifier):
             return node.symbol.value
         elif isinstance(node, ArrayAccess):
-            arr_ptr = self.get_address(node.array)
+            arr_addr = self.get_address(node.array)
             arr_idx = self.visit(node.index)
             indices = [ir.Constant(ir.IntType(32), 0), arr_idx]
-            return self.builder.gep(arr_ptr, indices, inbounds=True)
+            return self.builder.gep(arr_addr, indices, inbounds=True)
         elif isinstance(node, MemberAccess):
-            obj_ptr = self.get_address(node.object)
+            obj_addr = self.get_address(node.object)
             obj_idx = node.index
             indices = [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), obj_idx)]
-            return self.builder.gep(obj_ptr, indices, inbounds=True)
+            return self.builder.gep(obj_addr, indices, inbounds=True)
         if isinstance(node, UnaryOp) and node.op == '*':
             return self.visit(node.operand)
         raise Exception
@@ -140,27 +140,27 @@ class IRGenerator(Interpreter):
 
     def parse_binary(self, tree, left, right):
         op = tree.op
-        ltype, rtype = tree.left.ctype, tree.right.ctype
+        left_type, right_type = tree.left.ctype, tree.right.ctype
 
-        if isinstance(ltype, BasicType) and isinstance(rtype, BasicType):
-            if ltype == FLOAT or rtype == FLOAT:
-                if ltype == INT:
+        if isinstance(left_type, BasicType) and isinstance(right_type, BasicType):
+            if left_type == FLOAT or right_type == FLOAT:
+                if left_type == INT:
                     left = self.builder.sitofp(left, ir.FloatType())
-                if rtype == INT:
+                if right_type == INT:
                     right = self.builder.sitofp(right, ir.FloatType())
 
-        if op == '+' and isinstance(ltype, PointerType) and rtype == INT:
+        if op == '+' and isinstance(left_type, PointerType) and right_type == INT:
             return self.builder.gep(left, [right], inbounds=False)
-        if op == '+' and ltype == INT and isinstance(rtype, PointerType):
+        if op == '+' and left_type == INT and isinstance(right_type, PointerType):
             return self.builder.gep(right, [left], inbounds=False)
-        if op == '-' and isinstance(ltype, PointerType) and rtype == INT:
+        if op == '-' and isinstance(left_type, PointerType) and right_type == INT:
             neg_val = self.builder.neg(right)
             return self.builder.gep(left, [neg_val], inbounds=False)
-        if op == '-' and isinstance(ltype, PointerType) and isinstance(rtype, PointerType):
+        if op == '-' and isinstance(left_type, PointerType) and isinstance(right_type, PointerType):
             diff1 = self.builder.ptrtoint(left, ir.IntType(64))
             diff2 = self.builder.ptrtoint(right, ir.IntType(64))
-            result = self.builder.sub(diff1, diff2)
-            return self.builder.trunc(result, ir.IntType(32))
+            res_val = self.builder.sub(diff1, diff2)
+            return self.builder.trunc(res_val, ir.IntType(32))
 
         is_float = isinstance(left.type, ir.FloatType)
         if op in ('+', '-'):
@@ -213,8 +213,11 @@ class IRGenerator(Interpreter):
 
         self.visit(tree.body)
 
-        if tree.ctype.type == VOID and not self.builder.block.is_terminated:
-            self.builder.ret_void()
+        if not self.builder.block.is_terminated:
+            if tree.ctype.type == VOID:
+                self.builder.ret_void()
+            else:
+                self.builder.unreachable()
 
         self.curr_func = None
 
@@ -231,19 +234,19 @@ class IRGenerator(Interpreter):
             var_type = self.get_type(decl.ctype)
 
             if self.curr_func:
-                var_ptr = self.builder.alloca(var_type, name=var_name)
-                decl.name.symbol.value = var_ptr
+                var_addr = self.builder.alloca(var_type, name=var_name)
+                decl.name.symbol.value = var_addr
                 if decl.init:
                     init_val = self.visit(decl.init)
                     if isinstance(decl.init, Initializer):
                         for i, item_val in enumerate(init_val):
                             indices = [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), i)]
-                            elem_ptr = self.builder.gep(var_ptr, indices)
+                            elem_addr = self.builder.gep(var_addr, indices)
 
-                            tgt_type = elem_ptr.type.pointee
+                            tgt_type = elem_addr.type.pointee
                             cond_decay = (isinstance(item_val, ir.GlobalVariable) and
                                           isinstance(item_val.type.pointee, ir.ArrayType) and
-                                          isinstance(elem_ptr.type.pointee, ir.PointerType))
+                                          isinstance(elem_addr.type.pointee, ir.PointerType))
                             cond_null = (isinstance(item_val, ir.Constant) and
                                          item_val.type.is_pointer and
                                          str(item_val).endswith('null'))
@@ -258,21 +261,21 @@ class IRGenerator(Interpreter):
                             elif item_val.type != tgt_type:
                                 item_val = self.parse_cast(item_val, tgt_type)
 
-                            self.builder.store(item_val, elem_ptr)
+                            self.builder.store(item_val, elem_addr)
                     else:
                         casted_val = self.parse_cast(init_val, var_type)
-                        self.builder.store(casted_val, var_ptr)
+                        self.builder.store(casted_val, var_addr)
             else:
-                var = ir.GlobalVariable(self.module, var_type, name=var_name)
-                decl.name.symbol.value = var
+                var_val = ir.GlobalVariable(self.module, var_type, name=var_name)
+                decl.name.symbol.value = var_val
                 if decl.init:
                     const_val = self.parse_constant(decl.init)
                     if isinstance(const_val, list):
-                        var.initializer = ir.Constant(var_type, const_val)
+                        var_val.initializer = ir.Constant(var_type, const_val)
                     else:
-                        var.initializer = const_val
+                        var_val.initializer = const_val
                 else:
-                    var.initializer = ir.Constant(var_type, None)
+                    var_val.initializer = ir.Constant(var_type, None)
 
     def arr_decl(self, tree):
         return self.var_decl(tree)
@@ -410,93 +413,90 @@ class IRGenerator(Interpreter):
             self.builder.store(res_val, left_addr)
             return res_val
 
-    def binary_op(self, tree: BinaryOp):
+    def binary_op(self, tree):
         if tree.op in ('&&', '||'):
-            is_and = tree.op == '&&'
-            entry_val = ir.Constant(ir.IntType(1), False if is_and else True)
+            is_and = (tree.op == '&&')
 
-            cond1 = self.visit(tree.left)
-            if cond1.type != ir.IntType(1):
-                cond1 = self.builder.icmp_ne(cond1, ir.Constant(cond1.type, 0))
+            left_cond = self.visit(tree.left)
+            if left_cond.type != ir.IntType(1):
+                left_cond = self.builder.icmp_ne(left_cond, ir.Constant(left_cond.type, 0))
 
             res_addr = self.builder.alloca(ir.IntType(1), name='logic.res')
-            self.builder.store(cond1, res_addr)
+            self.builder.store(left_cond, res_addr)
 
-            bb_next = self.curr_func.append_basic_block('logic.next')
-            bb_end = self.curr_func.append_basic_block('logic.end')
+            next_block = self.curr_func.append_basic_block('logic.next')
+            end_block = self.curr_func.append_basic_block('logic.end')
+            self.builder.cbranch(left_cond, next_block if is_and else end_block, end_block if is_and else next_block)
 
-            self.builder.cbranch(cond1, bb_next if is_and else bb_end, bb_end if is_and else bb_next)
+            self.builder.position_at_end(next_block)
+            right_cond = self.visit(tree.right)
+            if right_cond.type != ir.IntType(1):
+                right_cond = self.builder.icmp_ne(right_cond, ir.Constant(right_cond.type, 0))
+            self.builder.store(right_cond, res_addr)
+            self.builder.branch(end_block)
 
-            self.builder.position_at_end(bb_next)
-            cond2 = self.visit(tree.right)
-            if cond2.type != ir.IntType(1):
-                cond2 = self.builder.icmp_ne(cond2, ir.Constant(cond2.type, 0))
-            self.builder.store(cond2, res_addr)
-            self.builder.branch(bb_end)
-
-            self.builder.position_at_end(bb_end)
+            self.builder.position_at_end(end_block)
             return self.builder.load(res_addr)
+        else:
+            left_val = self.visit(tree.left)
+            right_val = self.visit(tree.right)
+            return self.parse_binary(tree, left_val, right_val)
 
-        lhs = self.visit(tree.left)
-        rhs = self.visit(tree.right)
-        return self.parse_binary(tree, lhs, rhs)
-
-    def unary_op(self, tree: UnaryOp):
-        operand_val = self.visit(tree.operand)
-        op = tree.op
-
-        if op == '+':
-            return operand_val
-        if op == '-':
-            return self.builder.fneg(operand_val) if isinstance(operand_val.type, ir.FloatType) else self.builder.neg(
-                operand_val)
-        if op == '!':
-            zero = ir.Constant(operand_val.type, 0)
-            return self.builder.icmp_signed('==', operand_val, zero)
-        if op == '&':
+    def unary_op(self, tree):
+        old_val = self.visit(tree.operand)
+        if tree.op == '+':
+            return old_val
+        elif tree.op == '-':
+            if isinstance(old_val.type, ir.FloatType):
+                return self.builder.fneg(old_val)
+            else:
+                return self.builder.neg(old_val)
+        elif tree.op == '!':
+            zero = ir.Constant(old_val.type, 0)
+            return self.builder.icmp_signed('==', old_val, zero)
+        elif tree.op == '&':
             return self.get_address(tree.operand)
-        if op == '*':
-            return self.builder.load(operand_val)
-        if op in ('++', '--'):
-            addr = self.get_address(tree.operand)
-            val = self.builder.load(addr)
-            one = ir.Constant(val.type, 1)
-            new_val = self.builder.add(val, one) if op == '++' else self.builder.sub(val, one)
-            self.builder.store(new_val, addr)
+        elif tree.op == '*':
+            return self.builder.load(old_val)
+        elif tree.op in ('++', '--'):
+            operand_addr = self.get_address(tree.operand)
+            old_val = self.builder.load(operand_addr)
+            one = ir.Constant(old_val.type, 1)
+            new_val = self.builder.add(old_val, one) if tree.op == '++' else self.builder.sub(old_val, one)
+            self.builder.store(new_val, operand_addr)
             return new_val
-
         raise Exception
 
-    def postfix_op(self, tree: PostfixOp):
-        addr = self.get_address(tree.operand)
-        old_val = self.builder.load(addr)
+    def postfix_op(self, tree):
+        operand_addr = self.get_address(tree.operand)
+        old_val = self.builder.load(operand_addr)
         one = ir.Constant(old_val.type, 1)
         new_val = self.builder.add(old_val, one) if tree.op == '++' else self.builder.sub(old_val, one)
-        self.builder.store(new_val, addr)
+        self.builder.store(new_val, operand_addr)
         return old_val
 
-    def func_call(self, tree: FunctionCall):
+    def func_call(self, tree):
         func_val = self.visit(tree.func)
 
         arg_vals = []
         for i, arg_node in enumerate(tree.args):
+            arg_type = func_val.type.pointee.args[i]
             arg_val = self.visit(arg_node)
-            expected_type = func_val.type.pointee.args[i]
-            casted_arg = self.parse_cast(arg_val, expected_type)
-            arg_vals.append(casted_arg)
+            arg_val = self.parse_cast(arg_val, arg_type)
+            arg_vals.append(arg_val)
 
         return self.builder.call(func_val, arg_vals)
 
     def array_access(self, tree):
-        addr = self.get_address(tree)
-        return self.builder.load(addr)
+        elem_addr = self.get_address(tree)
+        return self.builder.load(elem_addr)
 
     def member_access(self, tree):
-        addr = self.get_address(tree)
+        member_addr = self.get_address(tree)
         if isinstance(tree.object.ctype, CompoundType) and tree.object.ctype.union:
             target_ptr_type = self.get_type(tree.ctype).as_pointer()
-            addr = self.builder.bitcast(addr, target_ptr_type)
-        return self.builder.load(addr)
+            member_addr = self.builder.bitcast(member_addr, target_ptr_type)
+        return self.builder.load(member_addr)
 
     def identifier(self, tree):
         symbol = tree.symbol
@@ -521,19 +521,19 @@ class IRGenerator(Interpreter):
 
     def string(self, tree):
         if tree.value in self.strings:
-            var = self.strings[tree.value]
+            str_val = self.strings[tree.value]
         else:
             str_arr = bytearray((tree.value + '\0').encode('utf8'))
             str_type = ir.ArrayType(ir.IntType(8), len(str_arr))
             str_name = f".str.{len(self.strings)}"
-            var = ir.GlobalVariable(self.module, str_type, name=str_name)
-            var.initializer = ir.Constant(str_type, str_arr)
-            var.global_constant = True
-            var.linkage = 'private'
-            self.strings[tree.value] = var
+            str_val = ir.GlobalVariable(self.module, str_type, name=str_name)
+            str_val.initializer = ir.Constant(str_type, str_arr)
+            str_val.global_constant = True
+            str_val.linkage = 'private'
+            self.strings[tree.value] = str_val
 
         zero = ir.Constant(ir.IntType(32), 0)
-        return self.builder.gep(var, [zero, zero], inbounds=True, name=f"{var.name}.decay")
+        return self.builder.gep(str_val, [zero, zero], inbounds=True, name=f"{str_val.name}.decay")
 
     @staticmethod
     def bool(tree):

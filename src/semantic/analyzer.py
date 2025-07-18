@@ -176,6 +176,8 @@ class Analyzer(Interpreter):
     def is_assignable(ltype, rtype):
         if ltype == rtype:
             return True
+        if isinstance(ltype, EnumType) and rtype == INT or ltype == INT and isinstance(rtype, EnumType):
+            return True
         if ltype == BOOL and (isinstance(rtype, (BasicType, PointerType, ArrayType))):
             return True
         if ltype == FLOAT and rtype == INT:
