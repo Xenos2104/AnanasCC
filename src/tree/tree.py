@@ -9,6 +9,10 @@ class ASTNode(Tree):
         self.line = meta.line if meta else -1
         self.column = meta.column if meta else -1
 
+        self.ctype = None
+        self.symbol = None
+        self.index = None
+
 
 class Program(ASTNode):
     def __init__(self, decl, meta=None):

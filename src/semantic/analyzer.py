@@ -8,6 +8,7 @@ from .type import *
 
 class Analyzer(Interpreter):
     def __init__(self):
+        super().__init__()
         self.table = SymbolTable()
         self.curr_func = None
         self.loop_depth = 0
@@ -24,6 +25,7 @@ class Analyzer(Interpreter):
 
     def analyze(self, tree):
         self.visit(tree)
+        return tree
 
     # ===============  辅助方法  ===============
 
@@ -95,6 +97,16 @@ class Analyzer(Interpreter):
                 return int(bool(left) and bool(right))
             if node.op == '||':
                 return int(bool(left) or bool(right))
+        if isinstance(node, UnaryOp):
+            operand = self.parse_constexpr(node.operand)
+            if operand is None:
+                return None
+            if node.op == '+':
+                return operand
+            if node.op == '-':
+                return -operand
+            if node.op == '!':
+                return int(not operand)
         return None
 
 
@@ -172,6 +184,8 @@ class Analyzer(Interpreter):
             return True
         if isinstance(ltype, PointerType) and isinstance(rtype, ArrayType) and ltype.type == rtype.type:
             return True
+        if isinstance(ltype, PointerType) and ltype.type == VOID and isinstance(rtype, (PointerType, ArrayType)):
+            return True
         return False
 
     def is_lvalue(self, node):
@@ -197,8 +211,8 @@ class Analyzer(Interpreter):
     def func_def(self, tree):
         return_type = self.parse_type(tree.spec)
         func_name = tree.decl.name.value
-        suffix = next(i for i in tree.decl.suffix if isinstance(i, ParamSuffix))
 
+        suffix = next(i for i in tree.decl.suffix if isinstance(i, ParamSuffix))
         param_types, param_names = [], []
         if suffix.params and suffix.params != ['void']:
             for param in suffix.params:
@@ -216,17 +230,20 @@ class Analyzer(Interpreter):
             if symbol.type != func_type:
                 self.raise_error(f"函数 '{func_name}' 类型冲突", tree.decl.name)
                 return
+            symbol.node = tree
             symbol.defined = True
         else:
             symbol = Symbol(func_type, func_name, SymbolKind.FUNC, tree.decl.name)
             if not self.table.define(symbol):
                 self.raise_error(f"函数 '{func_name}' 重复定义", tree.decl.name)
 
+        tree.decl.name.symbol = symbol
+        tree.ctype = func_type
         self.curr_func = func_type
         self.table.enter_scope()
 
         for param_type, param_name, node in param_names:
-            symbol = Symbol(param_type, param_name, SymbolKind.VAR, node)
+            symbol = Symbol(param_type, param_name, SymbolKind.VAR, node.decl.name)
             if not self.table.define(symbol):
                 self.raise_error(f"形参 '{param_name}' 重复定义", node)
 
@@ -239,18 +256,24 @@ class Analyzer(Interpreter):
         comp_name = tree.decl.name.value
         is_union = False if tree.spec.type == 'struct' else True
 
-        members = {}
-        for member in tree.members:
-            for decl in member.decls:
-                member_name = decl.name.value
-                if member_name in members:
-                    self.raise_error(f"成员变量 '{member_name}' 重复定义", decl)
-                members[member_name] = self.parse_type(member.spec, decl)
-
-        comp_type = CompoundType(comp_name, members, is_union)
-        symbol = Symbol(comp_type, comp_name, SymbolKind.TYPE, tree.decl.name)
+        temp_type = CompoundType(comp_name, None, is_union)
+        symbol = Symbol(temp_type, comp_name, SymbolKind.TYPE, tree.decl.name, defined=False)
         if not self.table.define(symbol):
             self.raise_error(f"类型 '{comp_name}' 重复定义", tree.decl.name)
+
+        members = {}
+        for member in tree.members:
+            for member_decl in member.decls:
+                member_name = member_decl.name.value
+                if member_name in members:
+                    self.raise_error(f"成员变量 '{member_name}' 重复定义", member_decl)
+                member_type = self.parse_type(member.spec, member_decl)
+                members[member_name] = member_type
+                member_decl.ctype = member_type
+
+        comp_type = CompoundType(comp_name, members, is_union)
+        symbol.type = comp_type
+        symbol.defined = True
 
     def enum_def(self, tree):
         enum_name = tree.decl.name.value
@@ -278,7 +301,7 @@ class Analyzer(Interpreter):
             cnt += 1
 
         enum_type = EnumType(enum_name, enumerators)
-        symbol = Symbol(enum_type, enum_name, SymbolKind.TYPE, tree.decl)
+        symbol = Symbol(enum_type, enum_name, SymbolKind.TYPE, tree.decl.name)
         self.table.define(symbol)
 
         for enumerator in tree.enumerators:
@@ -291,8 +314,8 @@ class Analyzer(Interpreter):
 
         for decl in tree.decls:
             func_name = decl.name.value
-            suffix = next((i for i in decl.suffix if isinstance(i, ParamSuffix)), None)
 
+            suffix = next((i for i in decl.suffix if isinstance(i, ParamSuffix)), None)
             params_types = []
             if suffix.params and suffix.params != ['void']:
                 for param in suffix.params:
@@ -310,53 +333,57 @@ class Analyzer(Interpreter):
             else:
                 symbol = Symbol(func_type, func_name, SymbolKind.FUNC, decl.name, defined=False)
                 self.table.define(symbol)
-
+            decl.ctype = func_type
 
     def var_decl(self, tree):
         for decl in tree.decls:
-            type = self.parse_type(tree.spec, decl)
-            name = decl.name.value
-            init = decl.init
-            if type == VOID:
-                self.raise_error(f"变量 '{name}' 不能被声明为 'void' 类型", decl.name)
+            var_type = self.parse_type(tree.spec, decl)
+            var_name = decl.name.value
+            var_init = decl.init
+
+            decl.ctype = var_type
+            if var_type == VOID:
+                self.raise_error(f"变量 '{var_name}' 不能被声明为 'void' 类型", decl.name)
                 return
 
-            symbol = Symbol(type, name, SymbolKind.VAR, decl.name)
+            symbol = Symbol(var_type, var_name, SymbolKind.VAR, decl.name)
             if not self.table.define(symbol):
-                self.raise_error(f"变量 '{name}' 重复定义", decl.name)
+                self.raise_error(f"变量 '{var_name}' 重复定义", decl.name)
 
-            if init:
-                self.visit(init)
-                if isinstance(init, Initializer):
-                    self.parse_init(init, type, decl)
-                elif not self.is_assignable(type, init.ctype):
-                    self.raise_error(f"无法将 '{init.ctype}' 初始化为 '{type}'", init)
+            if var_init:
+                self.visit(var_init)
+                if isinstance(var_init, Initializer):
+                    self.parse_init(var_init, var_type, decl)
+                elif self.curr_func is None and self.parse_constexpr(var_init) is None:
+                    self.raise_error(f"全局变量 '{var_name}' 的初始化项必须是常量表达式", var_init)
+                elif not self.is_assignable(var_type, var_init.ctype):
+                    self.raise_error(f"无法将 '{var_init.ctype}' 初始化为 '{var_type}'", var_init)
 
 
     def arr_decl(self, tree):
         for decl in tree.decls:
-            type = self.parse_type(tree.spec, decl)
-            name = decl.name.value
-            init = decl.init
+            arr_type = self.parse_type(tree.spec, decl)
+            arr_name = decl.name.value
+            arr_init = decl.init
 
-            if type.size is None and init is None:
-                self.raise_error(f"数组 '{name}' 没有初始化列表", decl)
-                continue
+            decl.ctype = arr_type
+            if arr_type.size is None and arr_init is None:
+                self.raise_error(f"数组 '{arr_name}' 没有初始化列表", decl)
+                return
+            if arr_type.type == VOID:
+                self.raise_error(f"数组 '{arr_name}' 不能被声明为 'void' 类型", decl.name)
+                return
 
-            if type.type == VOID:
-                self.raise_error(f"数组 '{name}' 不能被声明为 'void' 类型", decl.name)
-                continue
-
-            symbol = Symbol(type, decl.name.value, SymbolKind.VAR, decl.name)
+            symbol = Symbol(arr_type, decl.name.value, SymbolKind.VAR, decl.name)
             if not self.table.define(symbol):
-                self.raise_error(f"数组 '{name}' 重复定义", decl.name)
+                self.raise_error(f"数组 '{arr_name}' 重复定义", decl.name)
 
-            if init:
-                self.visit(init)
-                if isinstance(init, Initializer):
-                    self.parse_init(init, type, decl)
-                elif not self.is_assignable(type, init.ctype):
-                    self.raise_error(f"无法将 '{init.ctype}' 初始化为 '{type}'", init)
+            if arr_init:
+                self.visit(arr_init)
+                if isinstance(arr_init, Initializer):
+                    self.parse_init(arr_init, arr_type, decl)
+                elif not self.is_assignable(arr_type, arr_init.ctype):
+                    self.raise_error(f"无法将 '{arr_init.ctype}' 初始化为 '{arr_type}'", arr_init)
 
 
     def statement(self, tree):
@@ -421,6 +448,9 @@ class Analyzer(Interpreter):
         if self.loop_depth == 0:
             self.raise_error("'continue' 语句只能出现在循环内部", tree)
 
+    def empty_stmt(self, tree):
+        pass
+
     def expr_stmt(self, tree):
         if tree.expr:
             self.visit(tree.expr)
@@ -456,7 +486,7 @@ class Analyzer(Interpreter):
         self.visit(tree.left)
         self.visit(tree.right)
         ctype = self.parse_op(tree.op, tree.left.ctype, tree.right.ctype)
-        if not ctype:
+        if ctype is None:
             self.raise_error(f"运算符 '{tree.op}' 无效", tree)
         else:
             tree.ctype = ctype
@@ -520,37 +550,38 @@ class Analyzer(Interpreter):
     def array_access(self, tree):
         self.visit(tree.array)
         self.visit(tree.index)
-        array, index = tree.array.ctype, tree.index.ctype
+        array_type, index = tree.array.ctype, tree.index.ctype
         if index != INT:
             self.raise_error("数组下标必须是整数类型", tree.index)
-        if isinstance(array, ArrayType):
-            tree.ctype = array.type
-        elif isinstance(array, PointerType):
-            tree.ctype = array.type
+        if isinstance(array_type, ArrayType):
+            tree.ctype = array_type.type
+        elif isinstance(array_type, PointerType):
+            tree.ctype = array_type.type
         else:
-            self.raise_error(f"运算符 '[]' 只能用于指针或数组类型而非 '{array}'", tree)
+            self.raise_error(f"运算符 '[]' 只能用于指针或数组类型而非 '{array_type}'", tree)
 
     def member_access(self, tree):
         self.visit(tree.object)
 
-        obj, name = tree.object.ctype, tree.member.value
+        obj_type, member_name = tree.object.ctype, tree.member.value
         if tree.arrow:
-            if isinstance(obj, PointerType) and isinstance(obj.type, CompoundType):
-                comp = obj.type
+            if isinstance(obj_type, PointerType) and isinstance(obj_type.type, CompoundType):
+                comp_type = obj_type.type
             else:
-                self.raise_error(f"运算符 '->' 必须用于指向结构体或联合体的指针而非 '{obj}'", tree.object)
+                self.raise_error(f"运算符 '->' 必须用于指向结构体或联合体的指针而非 '{obj_type}'", tree.object)
                 return
         else:
-            if isinstance(obj, CompoundType):
-                comp = obj
+            if isinstance(obj_type, CompoundType):
+                comp_type = obj_type
             else:
-                self.raise_error(f"运算符 '.' 必须用于结构体或联合体而非 '{obj}'", tree.object)
+                self.raise_error(f"运算符 '.' 必须用于结构体或联合体而非 '{obj_type}'", tree.object)
                 return
-        if name in comp.members:
-            tree.ctype = comp.members[name]
+        if member_name in comp_type.members:
+            tree.ctype = comp_type.members[member_name]
             tree.member.ctype = tree.ctype
+            tree.index = list(comp_type.members.keys()).index(member_name)
         else:
-            self.raise_error(f"类型 '{comp}' 中不存在名为 '{name}' 的成员", tree.member)
+            self.raise_error(f"类型 '{comp_type}' 中不存在名为 '{member_name}' 的成员", tree.member)
 
     def identifier(self, tree):
         symbol = self.table.lookup(tree.value)
@@ -558,6 +589,7 @@ class Analyzer(Interpreter):
             self.raise_error(f"未声明的标识符 '{tree.value}'", tree)
             return
         tree.ctype = symbol.type
+        tree.symbol = symbol
 
     @staticmethod
     def integer(tree):

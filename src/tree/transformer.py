@@ -275,9 +275,13 @@ class ASTTransformer(Transformer):
         i = 1
         while i < len(args):
             op = args[i]
-            if isinstance(op, list) or op is None:
-                node = FunctionCall(node, op or [], meta)
-                i += 1
+            if op.type == 'LPAREN':
+                if isinstance(args[i + 1], Token) and args[i + 1].type == 'RPAREN':
+                    node = FunctionCall(node, [], meta)
+                    i += 2
+                else:
+                    node = FunctionCall(node, args[i + 1], meta)
+                    i += 3
             elif op.type == 'LBRACK':
                 node = ArrayAccess(node, args[i + 1], meta)
                 i += 2
@@ -291,6 +295,44 @@ class ASTTransformer(Transformer):
                 i += 1
             else:
                 i += 1
+        return node
+
+    # transformer.py (只修改 Transformer 的最终解决方案)
+
+    @staticmethod
+    def postfix_expr(meta, *args):
+        node = args[0]
+
+        i = 1
+        while i < len(args):
+            op_or_arg = args[i]
+            if op_or_arg.type == 'LPAREN':
+                next_item = args[i + 1]
+                if isinstance(next_item, Token) and next_item.type == 'RPAREN':
+                    node = FunctionCall(node, [], meta)
+                    i += 2  # 跳过 LPAREN 和 RPAREN
+                else:
+                    arg_list = next_item
+                    if not isinstance(arg_list, list):
+                        arg_list = [arg_list]
+                    node = FunctionCall(node, arg_list, meta)
+                    i += 3
+            elif op_or_arg.type == 'LBRACK':
+                expression = args[i + 1]
+                node = ArrayAccess(node, expression, meta)
+                i += 3
+            elif op_or_arg.type in ('DOT', 'ARROW'):
+                arrow = (op_or_arg.type == 'ARROW')
+                member = args[i + 1]
+                node = MemberAccess(node, member, arrow, meta)
+                i += 2
+
+            elif op_or_arg.type in ('INCREMENT', 'DECREMENT'):
+                node = PostfixOp(op_or_arg.value, node, meta)
+                i += 1
+            else:
+                i += 1
+
         return node
 
     @staticmethod

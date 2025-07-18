@@ -7,6 +7,7 @@ class Symbol:
         self.name = name
         self.kind = kind
         self.node = node
+        self.value = None
         self.defined = defined
 
     def __repr__(self):
@@ -38,6 +39,8 @@ class SymbolTable:
             return False
         else:
             scope[symbol.name] = symbol
+            if symbol.node is not None:
+                symbol.node.symbol = symbol
             return True
 
     def lookup(self, name):
