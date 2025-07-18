@@ -19,10 +19,3 @@ class SyntaxError(CompileError):
 
 class SemanticError(CompileError):
     pass
-
-
-if __name__ == '__main__':
-    try:
-        raise SemanticError('这是一个语义错误', 11, 3)
-    except CompileError as e:
-        print(e)
