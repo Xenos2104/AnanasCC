@@ -1,1 +1,1 @@
-from generator import IRGenerator
+from .generator import IRGenerator

@@ -19,5 +19,4 @@ if __name__ == "__main__":
     lexer = Lexer('lexicon.lark')
     tokens = lexer.lex(code)
 
-    for token in tokens:
-        print(f'({token.type}, {token.value})')
+
