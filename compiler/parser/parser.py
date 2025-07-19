@@ -18,3 +18,9 @@ class Parser:
         transformer = ASTTransformer()
         tree = transformer.transform(tree)
         return tree
+
+    @property
+    def table(self):
+        inner_parser = self.parser.parser.parser
+        inner_table = getattr(inner_parser, '_parse_table', None)
+        return inner_table

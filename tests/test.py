@@ -5,10 +5,11 @@ from compiler.parser import Parser
 from compiler.semantic import Analyzer
 
 if __name__ == '__main__':
-    show_code, show_tokens, show_tree, show_ir = 1, 1, 1, 1
+    from compiler.utils import read_file, print_table
 
-    with open('test.c', encoding='utf-8') as f:
-        code = f.read()
+    show_code, show_tokens, show_tree, show_ir = 0, 0, 0, 0
+
+    code = read_file('test.c')
 
     try:
         lexer = Lexer('../compiler/lexer/lexicon.lark')
@@ -38,3 +39,6 @@ if __name__ == '__main__':
     if show_ir:
         print(' LLVM IR '.center(40, '='))
         print(ir)
+
+    table = parser.table
+    print_table(table, file_path='../temp', show=False, save=True)
