@@ -65,9 +65,9 @@ AnanasCC/
 │   ├── __main__.py         # 命令行接口
 │   └── utils.py            # 工具函数
 ├── tests/                  # 测试用例
-│   ├── test.c              # 综合测试用例
-│   ├── task1.c             # 任务1测试用例
-│   ├── task2.c             # 任务2测试用例
+│   ├── test.c              # 综合测试
+│   ├── task1.c             # 验收任务1
+│   ├── task2.c             # 验收任务2
 │   └── test.py             # 测试脚本
 ├── output/                 # 输出目录
 │   └── output.s            # 生成的汇编代码
