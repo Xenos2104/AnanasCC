@@ -1,39 +1,53 @@
+import codecs
+from pathlib import Path
+
 from lark.visitors import Interpreter
 from llvmlite import ir, binding
 
 from compiler.semantic.symbol import *
 from compiler.semantic.type import *
 from compiler.tree import *
+from compiler.utils import write_file
 
 binding.initialize()
 binding.initialize_native_target()
 binding.initialize_native_asmprinter()
 
 
-class IRGenerator(Interpreter):
+class Generator(Interpreter):
     def __init__(self):
         super().__init__()
         self.module = ir.Module(name='main_module')
         self.builder = None
+        self.ir = None
 
         self.curr_func = None
         self.loop_stack = []
         self.strings = {}
         self.structs = {}
 
+        void_type = ir.IntType(8).as_pointer()
+        func_type = ir.FunctionType(ir.IntType(32), [void_type], var_arg=True)
+        ir.Function(self.module, func_type, name="printf")
+        ir.Function(self.module, func_type, name="scanf")
+
+        self.module.triple = 'x86_64-pc-windows-msvc19.44.35209'
+
     # ===============  基础方法  ===============
 
     def generate(self, tree):
         self.visit(tree)
-        ir = str(self.module)
+        self.ir = str(self.module)
         try:
-            binding.parse_assembly(ir)
-            mod = binding.parse_assembly(ir)
+            mod = binding.parse_assembly(self.ir)
             mod.verify()
         except RuntimeError as e:
             print("IR报错了！！！！不！！！！！！！！！")
             raise e
-        return ir
+        return self.ir
+
+    def save(self, file_path=''):
+        write_file(self.ir, Path(file_path) / '04 org_ir.txt')
 
     # ===============  辅助方法  ===============
 
@@ -94,26 +108,38 @@ class IRGenerator(Interpreter):
             return self.visit(node.operand)
         raise Exception
 
+    def parse_string(self, node):
+        if node.value in self.strings:
+            return self.strings[node.value]
+
+        unescaped_value = codecs.decode(node.value, 'unicode_escape')
+        terminated_value = unescaped_value + '\0'
+
+        str_arr = bytearray(terminated_value.encode('utf8'))
+        str_type = ir.ArrayType(ir.IntType(8), len(str_arr))
+        str_name = f".str.{len(self.strings)}"
+        str_val = ir.GlobalVariable(self.module, str_type, name=str_name)
+        str_val.initializer = ir.Constant(str_type, str_arr)
+        str_val.global_constant = True
+        str_val.linkage = 'private'
+
+        self.strings[node.value] = str_val
+        return str_val
+
     def parse_constant(self, node):
         if isinstance(node, Integer):
             return ir.Constant(ir.IntType(32), int(node.value, 0))
         if isinstance(node, Decimal):
             return ir.Constant(ir.FloatType(), float(node.value))
         if isinstance(node, Character):
-            return ir.Constant(ir.IntType(8), ord(node.value))
+            char_val =  codecs.decode(node.value, 'unicode_escape')
+            return ir.Constant(ir.IntType(8), ord(char_val))
         if isinstance(node, Bool):
             return ir.Constant(ir.IntType(1), 1 if node.value else 0)
         if isinstance(node, NullPtr):
             return ir.Constant(ir.IntType(8).as_pointer(), None)
         if isinstance(node, String):
-            str_arr = bytearray((node.value + '\0').encode('utf8'))
-            str_type = ir.ArrayType(ir.IntType(8), len(str_arr))
-            str_val = ir.GlobalVariable(self.module, str_type, name=f".str.{len(self.strings)}")
-            str_val.initializer = ir.Constant(str_type, str_arr)
-            str_val.global_constant = True
-            str_val.linkage = 'private'
-            self.strings[node.value] = str_val
-            return str_val
+            return self.parse_string(node)
         if isinstance(node, Initializer):
             constants = [self.parse_constant(init) for init in node.inits]
             return constants
@@ -181,6 +207,36 @@ class IRGenerator(Interpreter):
 
         raise Exception
 
+    def parse_init(self, values, tgt_addr):
+        for i, item_val in enumerate(values):
+            indices = [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), i)]
+            elem_addr = self.builder.gep(tgt_addr, indices, inbounds=True)
+
+            if isinstance(item_val, list):
+                self.parse_init(item_val, elem_addr)
+            else:
+                tgt_type = elem_addr.type.pointee
+
+                cond_decay = (isinstance(item_val, ir.GlobalVariable) and
+                              isinstance(item_val.type.pointee, ir.ArrayType) and
+                              isinstance(elem_addr.type.pointee, ir.PointerType))
+                cond_null = (isinstance(item_val, ir.Constant) and
+                             item_val.type.is_pointer and
+                             str(item_val).endswith('null'))
+
+                if cond_decay:
+                    zero = ir.Constant(ir.IntType(32), 0)
+                    item_val = self.builder.gep(item_val, [zero, zero], inbounds=True)
+                elif cond_null:
+                    if isinstance(tgt_type, ir.PointerType):
+                        item_val = ir.Constant(tgt_type, None)
+                    else:
+                        raise Exception
+                elif item_val.type != tgt_type:
+                    item_val = self.parse_cast(item_val, tgt_type)
+
+                self.builder.store(item_val, elem_addr)
+
     # ===============  访问方法  ===============
 
     def program(self, tree: Program):
@@ -239,29 +295,7 @@ class IRGenerator(Interpreter):
                 if decl.init:
                     init_val = self.visit(decl.init)
                     if isinstance(decl.init, Initializer):
-                        for i, item_val in enumerate(init_val):
-                            indices = [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), i)]
-                            elem_addr = self.builder.gep(var_addr, indices)
-
-                            tgt_type = elem_addr.type.pointee
-                            cond_decay = (isinstance(item_val, ir.GlobalVariable) and
-                                          isinstance(item_val.type.pointee, ir.ArrayType) and
-                                          isinstance(elem_addr.type.pointee, ir.PointerType))
-                            cond_null = (isinstance(item_val, ir.Constant) and
-                                         item_val.type.is_pointer and
-                                         str(item_val).endswith('null'))
-                            if cond_decay:
-                                zero = ir.Constant(ir.IntType(32), 0)
-                                item_val = self.builder.gep(item_val, [zero, zero], inbounds=True)
-                            elif cond_null:
-                                if isinstance(tgt_type, ir.PointerType):
-                                    item_val = ir.Constant(tgt_type, None)
-                                else:
-                                    raise Exception
-                            elif item_val.type != tgt_type:
-                                item_val = self.parse_cast(item_val, tgt_type)
-
-                            self.builder.store(item_val, elem_addr)
+                        self.parse_init(init_val, var_addr)
                     else:
                         casted_val = self.parse_cast(init_val, var_type)
                         self.builder.store(casted_val, var_addr)
@@ -276,6 +310,7 @@ class IRGenerator(Interpreter):
                         var_val.initializer = const_val
                 else:
                     var_val.initializer = ir.Constant(var_type, None)
+
 
     def arr_decl(self, tree):
         return self.var_decl(tree)
@@ -410,7 +445,8 @@ class IRGenerator(Interpreter):
             fake_node.right = type("Fake", (), {"ctype": tree.right.ctype})()
 
             res_val = self.parse_binary(fake_node, left_val, right_val)
-            self.builder.store(res_val, left_addr)
+            casted_val = self.parse_cast(res_val, left_addr.type.pointee)
+            self.builder.store(casted_val, left_addr)
             return res_val
 
     def binary_op(self, tree):
@@ -476,16 +512,33 @@ class IRGenerator(Interpreter):
         return old_val
 
     def func_call(self, tree):
-        func_val = self.visit(tree.func)
+        func_name = tree.func.value
+        if func_name in ("printf", "scanf"):
+            func_val = self.module.globals.get(func_name)
+            format_str_val = self.visit(tree.args[0])
+            arg_vals = [format_str_val]
 
-        arg_vals = []
-        for i, arg_node in enumerate(tree.args):
-            arg_type = func_val.type.pointee.args[i]
-            arg_val = self.visit(arg_node)
-            arg_val = self.parse_cast(arg_val, arg_type)
-            arg_vals.append(arg_val)
+            for arg_node in tree.args[1:]:
+                if func_name == 'printf':
+                    arg_val = self.visit(arg_node)
+                    if isinstance(arg_val.type, ir.FloatType):
+                        arg_val = self.builder.fpext(arg_val, ir.DoubleType())
+                    arg_vals.append(arg_val)
 
-        return self.builder.call(func_val, arg_vals)
+                elif func_name == 'scanf':
+                    arg_addr = self.get_address(arg_node)
+                    casted_addr = self.builder.bitcast(arg_addr, ir.IntType(8).as_pointer())
+                    arg_vals.append(casted_addr)
+            return self.builder.call(func_val, arg_vals)
+        else:
+            func_val = self.visit(tree.func)
+            arg_vals = []
+            for i, arg_node in enumerate(tree.args):
+                arg_type = func_val.type.pointee.args[i]
+                arg_val = self.visit(arg_node)
+                arg_val = self.parse_cast(arg_val, arg_type)
+                arg_vals.append(arg_val)
+            return self.builder.call(func_val, arg_vals)
 
     def array_access(self, tree):
         elem_addr = self.get_address(tree)
@@ -517,21 +570,11 @@ class IRGenerator(Interpreter):
 
     @staticmethod
     def character(tree):
-        return ir.Constant(ir.IntType(8), ord(tree.value))
+        char_val = codecs.decode(tree.value, 'unicode_escape')
+        return ir.Constant(ir.IntType(8), ord(char_val))
 
     def string(self, tree):
-        if tree.value in self.strings:
-            str_val = self.strings[tree.value]
-        else:
-            str_arr = bytearray((tree.value + '\0').encode('utf8'))
-            str_type = ir.ArrayType(ir.IntType(8), len(str_arr))
-            str_name = f".str.{len(self.strings)}"
-            str_val = ir.GlobalVariable(self.module, str_type, name=str_name)
-            str_val.initializer = ir.Constant(str_type, str_arr)
-            str_val.global_constant = True
-            str_val.linkage = 'private'
-            self.strings[tree.value] = str_val
-
+        str_val = self.parse_string(tree)
         zero = ir.Constant(ir.IntType(32), 0)
         return self.builder.gep(str_val, [zero, zero], inbounds=True, name=f"{str_val.name}.decay")
 

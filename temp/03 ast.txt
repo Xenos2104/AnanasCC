@@ -1,0 +1,16 @@
+program
+  declaration
+    func_def
+      specifier	int
+      declarator
+        identifier	main
+        param_suffix
+      statement
+        expr_stmt
+          expression
+            func_call
+              identifier	printf
+              string	"Hello, World!\n"
+        return_stmt
+          expression
+            integer	0

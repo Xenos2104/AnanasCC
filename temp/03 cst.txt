@@ -1,0 +1,57 @@
+program
+  unit
+    definition
+      func_def
+        specifier	int
+        declarator	main
+        param_suffix
+          (
+          )
+        comp_stmt
+          {
+          statement
+            expr_stmt
+              expression
+                assign_expr
+                  lor_expr
+                    land_expr
+                      equal_expr
+                        rel_expr
+                          add_expr
+                            mul_expr
+                              unary_expr
+                                postfix_expr
+                                  postfix_expr
+                                    primary_expr	printf
+                                  (
+                                  argument
+                                    assign_expr
+                                      lor_expr
+                                        land_expr
+                                          equal_expr
+                                            rel_expr
+                                              add_expr
+                                                mul_expr
+                                                  unary_expr
+                                                    postfix_expr
+                                                      primary_expr
+                                                        const	"Hello, World!\n"
+                                  )
+              ;
+          statement
+            jump_stmt
+              return
+              expression
+                assign_expr
+                  lor_expr
+                    land_expr
+                      equal_expr
+                        rel_expr
+                          add_expr
+                            mul_expr
+                              unary_expr
+                                postfix_expr
+                                  primary_expr
+                                    const	0
+              ;
+          }

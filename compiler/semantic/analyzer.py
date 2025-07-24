@@ -17,6 +17,9 @@ class Analyzer(Interpreter):
             symbol = Symbol(type, name, SymbolKind.TYPE)
             self.table.define(symbol)
 
+        self.table.define(Symbol(FunctionType(INT, None), 'printf', SymbolKind.FUNC))
+        self.table.define(Symbol(FunctionType(INT, None), 'scanf', SymbolKind.FUNC))
+
     # ===============  基础方法  ===============
 
     @staticmethod
@@ -176,11 +179,11 @@ class Analyzer(Interpreter):
     def is_assignable(ltype, rtype):
         if ltype == rtype:
             return True
-        if isinstance(ltype, EnumType) and rtype == INT or ltype == INT and isinstance(rtype, EnumType):
+        if (isinstance(ltype, EnumType) and rtype == INT) or (ltype == INT and isinstance(rtype, EnumType)):
             return True
         if ltype == BOOL and (isinstance(rtype, (BasicType, PointerType, ArrayType))):
             return True
-        if ltype == FLOAT and rtype == INT:
+        if ltype in (INT, FLOAT, CHAR, BOOL) and rtype in (INT, FLOAT, CHAR, BOOL):
             return True
         if isinstance(ltype, PointerType) and rtype == NULL:
             return True
@@ -537,7 +540,11 @@ class Analyzer(Interpreter):
         self.visit(tree.func)
         for arg in tree.args:
             self.visit(arg)
+
         ctype = tree.func.ctype
+        if tree.func.value in ("printf", "scanf"):
+            tree.ctype = ctype.type
+            return
         if not isinstance(ctype, FunctionType):
             self.raise_error("无法调用表达式", tree.func)
         args = [arg.ctype for arg in tree.args]
@@ -552,8 +559,8 @@ class Analyzer(Interpreter):
     def array_access(self, tree):
         self.visit(tree.array)
         self.visit(tree.index)
-        array_type, index = tree.array.ctype, tree.index.ctype
-        if index != INT:
+        array_type, index_type = tree.array.ctype, tree.index.ctype
+        if index_type != INT:
             self.raise_error("数组下标必须是整数类型", tree.index)
         if isinstance(array_type, ArrayType):
             tree.ctype = array_type.type

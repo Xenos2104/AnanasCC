@@ -1,0 +1,101 @@
+program
+  declaration
+    func_def
+      specifier	int
+      declarator
+        identifier	main
+        param_suffix	void
+      statement
+        var_decl
+          specifier	bool
+          declarator
+            identifier	ok
+            bool	false
+        var_decl
+          specifier	int
+          declarator
+            identifier	a
+            integer	1
+          declarator
+            identifier	b
+            integer	2
+        if_stmt                  // 【if语句】判断a和b是否同时超过阈值
+          expression
+            binary_op
+              binary_op
+                identifier	a
+                >             // a > 100
+                integer	100
+              &&
+              binary_op
+                identifier	b
+                >             // b > 200
+                integer	200
+          expr_stmt
+            expression
+              assign_op
+                identifier	ok
+                =
+                bool	true   // 条件满足，ok赋值为true
+          statement
+            for_stmt           // 【else分支中的for循环】若条件不满足，进入循环不断增长a和b
+              var_decl
+                specifier	int
+                declarator
+                  identifier	i
+                  integer	1   // 循环变量i从1开始
+              expression
+                postfix_op
+                  identifier	i
+                  ++          // 每轮循环i自增
+              statement
+                expr_stmt
+                  expression
+                    assign_op
+                      identifier	a
+                      +=
+                      binary_op
+                        identifier	a
+                        *
+                        identifier	i   // a += a * i，a按指数级递增
+                expr_stmt
+                  expression
+                    assign_op
+                      identifier	b
+                      +=
+                      binary_op
+                        identifier	b
+                        *
+                        identifier	i   // b += b * i，b按指数级递增
+                if_stmt
+                  expression
+                    binary_op
+                      binary_op
+                        identifier	a
+                        >             // 检查a > 100
+                        integer	100
+                      &&
+                      binary_op
+                        identifier	b
+                        >             // 检查b > 200
+                        integer	200
+                  statement
+                    expr_stmt
+                      expression
+                        assign_op
+                          identifier	ok
+                          =
+                          bool	true   // 条件达成，ok赋值为true
+                    break_stmt             // 跳出循环
+      if_stmt
+        expression
+          identifier	ok
+        expr_stmt
+          expression
+            func_call
+              identifier	printf
+              string	"%d"
+              identifier	a
+      return_stmt
+        expression
+          integer	0

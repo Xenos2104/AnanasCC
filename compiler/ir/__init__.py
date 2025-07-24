@@ -1,1 +1,2 @@
-from .generator import IRGenerator
+from .generator import Generator
+from .optimizer import Optimizer

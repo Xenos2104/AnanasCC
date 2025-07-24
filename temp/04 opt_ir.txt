@@ -1,0 +1,17 @@
+; ModuleID = '<string>'
+source_filename = "<string>"
+target triple = "x86_64-pc-windows-msvc19.44.35209"
+
+@str = private unnamed_addr constant [14 x i8] c"Hello, World!\00", align 1
+
+; Function Attrs: nofree nounwind
+define i32 @main() local_unnamed_addr #0 {
+entry:
+  %puts = tail call i32 @puts(i8* nonnull dereferenceable(1) getelementptr inbounds ([14 x i8], [14 x i8]* @str, i64 0, i64 0))
+  ret i32 0
+}
+
+; Function Attrs: nofree nounwind
+declare noundef i32 @puts(i8* nocapture noundef readonly) #0
+
+attributes #0 = { nofree nounwind }

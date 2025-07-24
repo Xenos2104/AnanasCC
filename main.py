@@ -1,5 +1,6 @@
 from compiler import Compiler
 
 if __name__ == '__main__':
-    compiler = Compiler()
-    pass
+    compiler = Compiler('output')
+    compiler.compile('main.c', execute=True)
+    compiler.save('temp')

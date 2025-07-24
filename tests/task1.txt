@@ -1,0 +1,70 @@
+; ModuleID = "main_module"
+target triple = "x86_64-pc-windows-msvc19.44.35209"
+target datalayout = ""
+
+%"Student" = type {i8*, i32, i32, [5 x float]}
+declare i32 @"printf"(i8* %".1", ...)
+
+declare i32 @"scanf"(i8* %".1", ...)
+
+define void @"main"()
+{
+entry:
+  %"sum" = alloca i32
+  store i32 0, i32* %"sum"
+  %"li" = alloca %"Student"
+  %".str.0.decay" = getelementptr inbounds [8 x i8], [8 x i8]* @".str.0", i32 0, i32 0
+  %".3" = getelementptr inbounds %"Student", %"Student"* %"li", i32 0, i32 0
+  store i8* %".str.0.decay", i8** %".3"
+  %".5" = getelementptr inbounds %"Student", %"Student"* %"li", i32 0, i32 1
+  store i32 5, i32* %".5"
+  %".7" = getelementptr inbounds %"Student", %"Student"* %"li", i32 0, i32 2
+  store i32 18, i32* %".7"
+  %".9" = getelementptr inbounds %"Student", %"Student"* %"li", i32 0, i32 3
+  %".10" = getelementptr inbounds [5 x float], [5 x float]* %".9", i32 0, i32 0
+  %".11" = sitofp i32 80 to float
+  store float %".11", float* %".10"
+  %".13" = getelementptr inbounds [5 x float], [5 x float]* %".9", i32 0, i32 1
+  %".14" = sitofp i32 90 to float
+  store float %".14", float* %".13"
+  %".16" = getelementptr inbounds [5 x float], [5 x float]* %".9", i32 0, i32 2
+  %".17" = sitofp i32 100 to float
+  store float %".17", float* %".16"
+  %".19" = getelementptr inbounds [5 x float], [5 x float]* %".9", i32 0, i32 3
+  %".20" = sitofp i32 86 to float
+  store float %".20", float* %".19"
+  %".22" = getelementptr inbounds [5 x float], [5 x float]* %".9", i32 0, i32 4
+  %".23" = sitofp i32 95 to float
+  store float %".23", float* %".22"
+  %"i" = alloca i32
+  store i32 0, i32* %"i"
+  br label %"for.cond"
+for.cond:
+  %".27" = load i32, i32* %"i"
+  %".28" = icmp slt i32 %".27", 5
+  br i1 %".28", label %"for.body", label %"for.end"
+for.body:
+  %".30" = getelementptr inbounds %"Student", %"Student"* %"li", i32 0, i32 3
+  %".31" = load i32, i32* %"i"
+  %".32" = getelementptr inbounds [5 x float], [5 x float]* %".30", i32 0, i32 %".31"
+  %".33" = load float, float* %".32"
+  %".34" = load i32, i32* %"sum"
+  %".35" = sitofp i32 %".34" to float
+  %".36" = fadd float %".35", %".33"
+  %".37" = fptosi float %".36" to i32
+  store i32 %".37", i32* %"sum"
+  br label %"for.post"
+for.post:
+  %".40" = load i32, i32* %"i"
+  %".41" = add i32 %".40", 1
+  store i32 %".41", i32* %"i"
+  br label %"for.cond"
+for.end:
+  %".str.1.decay" = getelementptr inbounds [4 x i8], [4 x i8]* @".str.1", i32 0, i32 0
+  %".44" = load i32, i32* %"sum"
+  %".45" = call i32 (i8*, ...) @"printf"(i8* %".str.1.decay", i32 %".44")
+  ret void
+}
+
+@".str.0" = private constant [8 x i8] c"Li ping\00"
+@".str.1" = private constant [4 x i8] c"%d \00"
