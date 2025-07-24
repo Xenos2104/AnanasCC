@@ -229,7 +229,10 @@ AnanasCC已被打包为独立的可执行文件，使用PyInstaller实现。
 pip install pyinstaller
 
 # 打包为单个可执行文件
-pyinstaller --onefile --name AnanasCC compiler/__main__.py
+pyinstaller --onefile --name AnanasCC ^
+    --add-data "compiler/lexer/lexicon.lark;compiler/lexer" ^
+    --add-data "compiler/parser/syntax.lark;compiler/parser" ^
+    compiler/__main__.py
 ```
 
 ## 当前限制
