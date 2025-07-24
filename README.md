@@ -237,7 +237,8 @@ pyinstaller --onefile --name AnanasCC compiler/__main__.py
 - 不支持预处理器指令
 - 不支持位运算
 - 不支持可变参数函数
-- 不支持复杂的类型转换
+- 不支持强制类型转换
+- 不支持函数指针
 
 ## 许可证
 
