@@ -10,7 +10,7 @@
 
 广西大学2025编译原理课程设计。
 
-AnanasCC（Ananas C Compiler）是一个用Python实现的C语言到X86汇编的编译器，作为编译原理课程设计项目开发。
+AnanasCC（Ananas C Compiler）是一个用Python实现的C语言到X86的编译器。
 
 该编译器支持C语言的主要特性和部分C++特性，能够将C代码编译为X86汇编代码，并可进一步生成可执行文件。
 
