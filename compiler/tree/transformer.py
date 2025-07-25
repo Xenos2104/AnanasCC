@@ -297,8 +297,6 @@ class ASTTransformer(Transformer):
                 i += 1
         return node
 
-    # transformer.py (只修改 Transformer 的最终解决方案)
-
     @staticmethod
     def postfix_expr(meta, *args):
         node = args[0]

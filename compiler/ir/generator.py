@@ -524,7 +524,6 @@ class Generator(Interpreter):
                     if isinstance(arg_val.type, ir.FloatType):
                         arg_val = self.builder.fpext(arg_val, ir.DoubleType())
                     arg_vals.append(arg_val)
-
                 elif func_name == 'scanf':
                     arg_addr = self.get_address(arg_node)
                     casted_addr = self.builder.bitcast(arg_addr, ir.IntType(8).as_pointer())
