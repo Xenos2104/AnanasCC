@@ -248,3 +248,9 @@ pyinstaller --onefile --name AnanasCC ^
 ## 许可证
 
 本项目采用MIT许可证。详情请参阅[LICENSE](LICENSE)文件。
+
+## 致谢
+- 感谢为项目提供理论支持的老师和同学
+- 感谢Lark提供的LALR(1)语法分析
+- 感谢LLVM提供的汇编生成器
+- 感谢Gemini 2.5 Pro和Claude 4 Sonnet
