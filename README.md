@@ -8,11 +8,11 @@
 
 ## 项目简介
 
-广西大学2025编译原理课程设计。
+广西大学2025编译原理课程设计。（仅供参考，禁止抄袭）
 
-AnanasCC（Ananas C Compiler）是一个用Python实现的C语言到X86的编译器。
+AnanasCC（Ananas C Compiler）是一个用Python实现的C语言到x86的编译器。
 
-该编译器支持C语言的主要特性和部分C++特性，能够将C代码编译为X86汇编代码，并可进一步生成可执行文件。
+该编译器支持C语言的主要特性和部分C++特性，能够将C代码编译为x86（本机）汇编代码，并可进一步生成可执行文件。
 
 ![](demo.jpg)
 
@@ -23,15 +23,15 @@ AnanasCC（Ananas C Compiler）是一个用Python实现的C语言到X86的编译
 - **语义分析**：遍历AST，进行类型检查和符号表管理
 - **中间代码**：遍历AST，为节点生成LLVM IR
 - **代码优化**：支持多级优化
-- **目标代码**：将IR转换为X86汇编代码（可得到exe）
+- **目标代码**：将IR转换为x86汇编代码（可得到exe）
 
-各阶段均分离开发，语法分析使用LALR(1)解析法，语义分析和中间代码之间通过AST交互，目标代码生成使用LLVM实现。
+各阶段均分离开发，词法分析基于正则表达式匹配，语法分析使用LALR(1)解析法，语义分析和中间代码之间通过自定义的AST交互，目标代码生成使用LLVM实现。
 
 ## 支持的C/C++特性
 
 - 基本数据类型（int, float, char, bool等）
 - 变量声明与初始化
-- 控制流语句（if-else, for, while, break, continue等）
+- 控制流语句（if-else, for, while, break等）
 - 表达式计算（不包括位运算）
 - 函数定义与调用
 - 指针与数组
@@ -146,7 +146,7 @@ python -m compiler your_file.c -e
 
 ## 示例
 
-### 简单的Hello World程序
+### Hello World
 
 ```c
 int main()
@@ -156,7 +156,7 @@ int main()
 }
 ```
 
-### 更复杂的示例
+### 复杂程序
 
 ```c
 int add(int a, int *b)
