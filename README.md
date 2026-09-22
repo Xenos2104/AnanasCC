@@ -1,3 +1,5 @@
+
+
 # AnanasCC 🍍 C编译器
 
 <div style="text-align: center;">
@@ -72,7 +74,8 @@ AnanasCC/
 │   ├── task2.c             # 验收任务2
 │   └── test.py             # 测试脚本
 ├── output/                 # 输出目录
-│   └── output.s            # 生成的汇编代码
+│   ├── output.s            # 生成的汇编代码
+│   └── output.exe          # 生成的可执行文件
 ├── temp/                   # 中间文件目录
 │   ├── 01 tokens.txt       # 单词表
 │   ├── 02 action_table.txt # ACTION表
